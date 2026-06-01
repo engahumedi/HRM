@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HRM Interactive Study — Mathis & Jackson 13th Ed.</title>
+<style>
+  :root {
+    --ch1: #6366f1; --ch2: #0ea5e9; --ch3: #10b981;
+    --ch4: #f59e0b; --ch5: #ef4444; --exam: #8b5cf6;
+    --bg: #0f172a; --card: #1e293b; --card2: #273449;
+    --text: #f1f5f9; --muted: #94a3b8; --border: #334155;
+    --correct: #22c55e; --wrong: #ef4444; --hint: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── HOME ── */
+  #home { padding: 32px 20px 60px; align-items: center; }
+  .home-header { text-align: center; margin-bottom: 40px; }
+  .home-header h1 { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #818cf8, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .home-header p { color: var(--muted); margin-top: 8px; font-size: .95rem; }
+
+  .stats-bar { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+  .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 50px; padding: 10px 22px; font-size: .85rem; color: var(--muted); }
+  .stat-pill span { color: var(--text); font-weight: 700; font-size: 1.1rem; }
+
+  .chapter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; width: 100%; max-width: 1100px; }
+
+  .chapter-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; cursor: pointer; transition: transform .2s, box-shadow .2s; position: relative; overflow: hidden; }
+  .chapter-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+  .chapter-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: 16px 16px 0 0; }
+  .ch-card-1::before { background: var(--ch1); }
+  .ch-card-2::before { background: var(--ch2); }
+  .ch-card-3::before { background: var(--ch3); }
+  .ch-card-4::before { background: var(--ch4); }
+  .ch-card-5::before { background: var(--ch5); }
+  .ch-card-exam::before { background: var(--exam); }
+
+  .card-icon { font-size: 2rem; margin-bottom: 12px; }
+  .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+  .card-sub { font-size: .8rem; color: var(--muted); margin-bottom: 16px; }
+  .card-meta { display: flex; justify-content: space-between; align-items: center; }
+  .q-count { font-size: .78rem; color: var(--muted); }
+  .progress-wrap { width: 100%; height: 6px; background: var(--card2); border-radius: 99px; margin-top: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 99px; transition: width .4s ease; }
+  .prog-1 { background: var(--ch1); } .prog-2 { background: var(--ch2); } .prog-3 { background: var(--ch3); }
+  .prog-4 { background: var(--ch4); } .prog-5 { background: var(--ch5); } .prog-exam { background: var(--exam); }
+
+  .badge { padding: 3px 10px; border-radius: 99px; font-size: .72rem; font-weight: 600; }
+  .badge-new { background: rgba(99,102,241,.2); color: #818cf8; border: 1px solid rgba(99,102,241,.3); }
+  .badge-done { background: rgba(34,197,94,.15); color: var(--correct); border: 1px solid rgba(34,197,94,.3); }
+
+  /* ── QUIZ SCREEN ── */
+  #quiz { padding: 0; }
+  .quiz-top { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 10; }
+  .btn-back { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: .85rem; transition: all .15s; }
+  .btn-back:hover { border-color: var(--text); color: var(--text); }
+  .quiz-title { font-weight: 700; font-size: 1rem; flex: 1; }
+  .quiz-counter { font-size: .85rem; color: var(--muted); }
+  .quiz-timer { font-size: .85rem; color: var(--hint); font-weight: 700; min-width: 50px; text-align: right; }
+
+  .progress-bar { height: 3px; background: var(--card2); }
+  .progress-bar-fill { height: 100%; transition: width .3s ease; }
+
+  .quiz-body { flex: 1; padding: 32px 20px; display: flex; justify-content: center; }
+  .quiz-inner { width: 100%; max-width: 700px; }
+
+  .q-label { font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; }
+  .q-text { font-size: 1.1rem; line-height: 1.6; margin-bottom: 28px; font-weight: 500; }
+
+  .options { display: flex; flex-direction: column; gap: 12px; }
+  .option-btn { background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 14px 18px; cursor: pointer; text-align: left; font-size: .95rem; line-height: 1.4; transition: all .15s; display: flex; align-items: flex-start; gap: 12px; }
+  .option-btn:hover:not(:disabled) { border-color: #818cf8; background: rgba(99,102,241,.08); }
+  .option-letter { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .option-text { flex: 1; }
+
+  .option-btn.correct { border-color: var(--correct); background: rgba(34,197,94,.1); }
+  .option-btn.correct .option-letter { border-color: var(--correct); background: var(--correct); color: #fff; }
+  .option-btn.wrong { border-color: var(--wrong); background: rgba(239,68,68,.1); }
+  .option-btn.wrong .option-letter { border-color: var(--wrong); background: var(--wrong); color: #fff; }
+  .option-btn.revealed { border-color: var(--correct); background: rgba(34,197,94,.06); }
+  .option-btn.revealed .option-letter { border-color: var(--correct); color: var(--correct); }
+  .option-btn:disabled { cursor: default; }
+
+  .tf-options { display: flex; gap: 14px; }
+  .tf-btn { flex: 1; padding: 18px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--card); cursor: pointer; font-size: 1.1rem; font-weight: 700; transition: all .15s; text-align: center; }
+  .tf-btn:hover:not(:disabled) { border-color: #818cf8; background: rgba(99,102,241,.1); }
+  .tf-btn.correct { border-color: var(--correct); background: rgba(34,197,94,.15); color: var(--correct); }
+  .tf-btn.wrong { border-color: var(--wrong); background: rgba(239,68,68,.15); color: var(--wrong); }
+  .tf-btn.revealed { border-color: var(--correct); color: var(--correct); background: rgba(34,197,94,.08); }
+  .tf-btn:disabled { cursor: default; }
+
+  .feedback-box { margin-top: 24px; padding: 16px 20px; border-radius: 12px; font-size: .9rem; line-height: 1.6; }
+  .feedback-box.correct { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); }
+  .feedback-box.wrong { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.3); }
+  .feedback-icon { font-size: 1.2rem; margin-bottom: 6px; }
+  .feedback-title { font-weight: 700; margin-bottom: 4px; }
+  .feedback-text { color: var(--muted); }
+
+  .btn-next { margin-top: 24px; width: 100%; padding: 15px; border-radius: 12px; border: none; background: #6366f1; color: white; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .15s; }
+  .btn-next:hover { background: #4f46e5; }
+  .btn-next:disabled { opacity: .4; cursor: not-allowed; }
+
+  .quiz-nav { display: flex; gap: 12px; margin-top: 16px; }
+  .btn-skip { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: .9rem; cursor: pointer; transition: all .15s; }
+  .btn-skip:hover { border-color: var(--text); color: var(--text); }
+
+  /* ── RESULTS SCREEN ── */
+  #results { padding: 32px 20px 60px; align-items: center; }
+  .results-inner { width: 100%; max-width: 700px; }
+  .result-header { text-align: center; margin-bottom: 36px; }
+  .score-ring { width: 150px; height: 150px; margin: 0 auto 20px; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring circle { fill: none; stroke-width: 10; stroke-linecap: round; }
+  .ring-bg { stroke: var(--card2); }
+  .ring-fg { stroke-dasharray: 408; stroke-dashoffset: 408; transition: stroke-dashoffset 1s ease; }
+  .score-center { position: relative; top: -105px; font-size: 2rem; font-weight: 800; text-align: center; }
+  .score-label { font-size: .8rem; color: var(--muted); }
+  .result-msg { font-size: 1.4rem; font-weight: 800; margin-bottom: 6px; }
+  .result-sub { color: var(--muted); font-size: .9rem; }
+
+  .result-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 32px; }
+  .rstat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
+  .rstat-num { font-size: 1.8rem; font-weight: 800; }
+  .rstat-label { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+  .correct-num { color: var(--correct); }
+  .wrong-num { color: var(--wrong); }
+
+  .review-section { margin-top: 20px; }
+  .review-section h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--muted); }
+  .review-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .review-item.wrong-item { border-color: rgba(239,68,68,.4); }
+  .review-q { font-size: .9rem; margin-bottom: 10px; line-height: 1.5; }
+  .review-answer { font-size: .82rem; }
+  .review-correct { color: var(--correct); margin-bottom: 4px; }
+  .review-yours { color: var(--wrong); }
+  .review-explain { font-size: .82rem; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); line-height: 1.5; }
+
+  .result-btns { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+  .btn-retry { flex: 1; padding: 14px; border-radius: 12px; border: none; background: #6366f1; color: white; font-weight: 700; cursor: pointer; font-size: .95rem; }
+  .btn-home-result { flex: 1; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font-weight: 700; cursor: pointer; font-size: .95rem; }
+  .btn-home-result:hover { background: var(--card); }
+
+  /* ── GENERAL UTILS ── */
+  .hidden { display: none !important; }
+  @media (max-width: 500px) {
+    .result-stats { grid-template-columns: 1fr 1fr; }
+    .tf-options { flex-direction: column; }
+    .home-header h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HOME ═══════════════════════════════ -->
+<div id="home" class="screen active">
+  <div class="home-header">
+    <h1>📚 HRM Interactive Study</h1>
+    <p>Mathis & Jackson · 13th Edition · Chapters 1 – 5</p>
+    <p style="margin-top:10px;font-size:1.1rem;color:#818cf8;font-weight:800;letter-spacing:.03em;">✦ تصميم م. المهند حمدي ✦</p>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-pill">Total Score <span id="total-score">0</span> pts</div>
+    <div class="stat-pill">Questions Answered <span id="total-answered">0</span></div>
+    <div class="stat-pill">Accuracy <span id="total-accuracy">—</span></div>
+  </div>
+
+  <div class="chapter-grid" id="chapter-grid"></div>
+</div>
+
+<!-- ═══════════════════════════════ QUIZ ═══════════════════════════════ -->
+<div id="quiz" class="screen">
+  <div class="quiz-top">
+    <button class="btn-back" id="btn-back">← Back</button>
+    <div class="quiz-title" id="quiz-title"></div>
+    <div class="quiz-counter" id="quiz-counter"></div>
+    <div class="quiz-timer hidden" id="quiz-timer">00:00</div>
+  </div>
+  <div class="progress-bar"><div class="progress-bar-fill" id="q-progress-fill"></div></div>
+
+  <div class="quiz-body">
+    <div class="quiz-inner">
+      <div class="q-label" id="q-label"></div>
+      <div class="q-text" id="q-text"></div>
+      <div id="answer-area"></div>
+      <div id="feedback-area"></div>
+      <div class="quiz-nav">
+        <button class="btn-skip hidden" id="btn-skip">Skip</button>
+        <button class="btn-next hidden" id="btn-next">Next Question →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ RESULTS ═══════════════════════════ -->
+<div id="results" class="screen">
+  <div class="results-inner">
+    <div class="result-header">
+      <div class="score-ring">
+        <svg viewBox="0 0 140 140" width="140" height="140">
+          <circle class="ring-bg" cx="70" cy="70" r="65"/>
+          <circle class="ring-fg" id="ring-fg" cx="70" cy="70" r="65"/>
+        </svg>
+        <div class="score-center">
+          <div id="score-pct">0%</div>
+          <div class="score-label">Score</div>
+        </div>
+      </div>
+      <div class="result-msg" id="result-msg"></div>
+      <div class="result-sub" id="result-sub"></div>
+    </div>
+
+    <div class="result-stats">
+      <div class="rstat"><div class="rstat-num correct-num" id="r-correct">0</div><div class="rstat-label">Correct</div></div>
+      <div class="rstat"><div class="rstat-num wrong-num" id="r-wrong">0</div><div class="rstat-label">Wrong</div></div>
+      <div class="rstat"><div class="rstat-num" id="r-total">0</div><div class="rstat-label">Total</div></div>
+    </div>
+
+    <div class="result-btns">
+      <button class="btn-retry" id="btn-retry">🔄 Try Again</button>
+      <button class="btn-home-result" id="btn-home-result">🏠 Home</button>
+    </div>
+
+    <div class="review-section" id="review-section"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ DATA ═══════════════
+const CHAPTERS = [
+  {
+    id: 1, title: 'Chapter 1', sub: 'HR Management in Organizations',
+    icon: '🏢', color: 'var(--ch1)', prog: 'prog-1', card: 'ch-card-1',
+    questions: [
+      { type:'mcq', q:'Which of the following best defines Human Resource Management?',
+        opts:['Hiring and firing employees based on performance','Designing management systems to ensure human talent is used effectively and efficiently to accomplish organizational goals','Managing financial assets for organizational growth','Developing technology systems to automate employee tasks'],
+        ans:1, exp:'HRM is specifically defined as designing management systems to ensure human talent is used effectively and efficiently to accomplish organizational goals.' },
+      { type:'mcq', q:'Human capital is sometimes also referred to as:',
+        opts:['Physical capital','Organizational culture','Intellectual capital','Financial assets'],
+        ans:2, exp:'Human capital is also called intellectual capital because it represents the intellectual/skill value of the workforce.' },
+      { type:'mcq', q:'Which of the following is NOT one of the 7 HR management functions?',
+        opts:['Staffing','Rewards','Marketing strategy','Risk management and worker protection'],
+        ans:2, exp:'Marketing strategy is NOT an HR function. The 7 functions are: HR Planning, EEO, Staffing, Talent Management, Rewards, Risk Management, and Employee Relations.' },
+      { type:'mcq', q:'The formula for Unit Labor Cost is:',
+        opts:['Average Output ÷ Average Cost of Workers','Average Cost of Workers × Average Output','Average Cost of Workers ÷ Average Output','Total Revenue ÷ Number of Employees'],
+        ans:2, exp:'Unit Labor Cost = Average Cost of Workers ÷ Average Output. Higher output relative to cost = better productivity.' },
+      { type:'mcq', q:'Which HR role is described as proactive, future-focused, and tied to measuring results?',
+        opts:['Operational role','Employee advocate role','Administrative role','Strategic role'],
+        ans:3, exp:'The strategic role is the future-focused, proactive role. The operational role handles day-to-day activities.' },
+      { type:'tf', q:'Human assets are described as the "glue" that holds all other organizational assets together.',
+        ans:true, exp:'Human assets are indeed called the "glue" holding physical, financial, and intangible assets together.' },
+      { type:'tf', q:'A core competency is a common capability shared across all organizations in an industry.',
+        ans:false, exp:'A core competency is a UNIQUE capability that differentiates an organization from competitors. If it were common to all, it would not be a competitive advantage.' },
+      { type:'tf', q:'Outsourcing involves replacing workers with capital equipment to make employees more efficient.',
+        ans:false, exp:'Outsourcing means sending work to external vendors. Replacing workers with capital equipment is part of "Redesigning Work."' },
+      { type:'tf', q:'The strategic HR role focuses on future business needs, strategic planning, and measuring HR results.',
+        ans:true, exp:'The strategic HR role is proactive, future-focused, and measures its results tied to business strategy.' },
+    ]
+  },
+  {
+    id: 2, title: 'Chapter 2', sub: 'Strategic HR Management & Planning',
+    icon: '📊', color: 'var(--ch2)', prog: 'prog-2', card: 'ch-card-2',
+    questions: [
+      { type:'mcq', q:'Strategic HRM refers to:',
+        opts:['Conducting annual performance reviews','Using HR practices to gain or keep a competitive advantage','Managing the HR budget efficiently','Hiring the highest number of employees possible'],
+        ans:1, exp:'Strategic HRM is specifically about using HR practices to gain or maintain a competitive advantage — direct textbook definition.' },
+      { type:'mcq', q:'The Balanced Scorecard measures performance in how many areas?',
+        opts:['2','3','4','5'],
+        ans:2, exp:'The Balanced Scorecard covers 4 areas: Financial, Internal Business Processes, Customer Relations, and Learning & Growth.' },
+      { type:'mcq', q:'Offshoring is best defined as:',
+        opts:['Hiring employees from overseas countries','Relocating a business process to another country to reduce costs','Outsourcing work to domestic contractors','Expanding business operations to a new city'],
+        ans:1, exp:'Offshoring = relocating a business process to another country to reduce cost. Do not confuse with outsourcing (which can be domestic).' },
+      { type:'mcq', q:'In the HCVA formula, what does subtracting (Operating Expense – Compensation & Benefits) from Revenue achieve?',
+        opts:['It calculates gross profit','It isolates the operating profit attributable to human capital by adding back labor costs','It measures the total cost of the workforce','It gives the return on financial investment'],
+        ans:1, exp:'By subtracting (Op Expense – Comp & Benefits), we add labor costs BACK into the numerator, isolating the profit contribution from human capital alone.' },
+      { type:'mcq', q:'Which Balanced Scorecard area tracks employee training, succession planning, and knowledge sharing?',
+        opts:['Financial Measures','Customer Relations','Internal Business Processes','Learning & Growth'],
+        ans:3, exp:'Learning & Growth covers training, mentoring, succession planning, and knowledge creation/sharing.' },
+      { type:'tf', q:'Benchmarking is the process of comparing business processes and outcomes to an industry standard or best practice.',
+        ans:true, exp:'That is the exact definition of benchmarking.' },
+      { type:'tf', q:'The organizational mission describes how the organization plans to compete in the market.',
+        ans:false, exp:'The organizational MISSION describes the core REASON FOR EXISTENCE and what makes the org unique. It is the STRATEGY that describes how to compete.' },
+      { type:'tf', q:'HEVA measures the operating profit per full-time employee.',
+        ans:false, exp:'HEVA measures the WEALTH CREATED per employee: (Net Profit after Tax – Cost of Capital) / Headcount. HCVA measures operating profit per employee.' },
+      { type:'tf', q:'Environmental scanning assesses both internal and external conditions affecting the organization.',
+        ans:true, exp:'Environmental scanning covers both internal analysis (S, W) and external analysis (O, T).' },
+    ]
+  },
+  {
+    id: 3, title: 'Chapter 3', sub: 'Job Design',
+    icon: '🔧', color: 'var(--ch3)', prog: 'prog-3', card: 'ch-card-3',
+    questions: [
+      { type:'mcq', q:'Job enrichment differs from job enlargement in that it:',
+        opts:['Adds more tasks at the same level of responsibility','Reduces the number of tasks performed','Adds responsibility for planning, organizing, and controlling — a vertical expansion','Rotates employees across different departments'],
+        ans:2, exp:'Job enrichment is VERTICAL: it adds planning, organizing, controlling responsibilities. Job enlargement is HORIZONTAL: it adds more tasks at the same level.' },
+      { type:'mcq', q:'Which Hackman & Oldham characteristic refers to the extent a job includes a whole, identifiable unit of work done from start to finish?',
+        opts:['Skill Variety','Task Significance','Task Identity','Autonomy'],
+        ans:2, exp:'Task Identity = doing a job from start to finish with a visible outcome. Example: assembling a complete product vs. just one part.' },
+      { type:'mcq', q:'A virtual team is best characterized by:',
+        opts:['Members who meet daily in a central office','Members who are geographically separated but connected by communication technology','A small team that handles all HR decisions','Employees who share the same job role'],
+        ans:1, exp:'Virtual teams are geographically separated but linked by communication technology. Key factors for success: training, planning, and technology.' },
+      { type:'mcq', q:'The three phases of Business Process Reengineering (BPR) are:',
+        opts:['Rethink, Redesign, Retool','Review, Rebuild, Relaunch','Restructure, Redesign, Reward','Rethink, Recruit, Retrain'],
+        ans:0, exp:'The 3 phases are: Rethink (examine current state), Redesign (restructure the process), Retool (leverage new technology).' },
+      { type:'mcq', q:'A compressed workweek means:',
+        opts:['Employees work part-time hours throughout the month','A full week\'s work is completed in fewer than five 8-hour days','Employees vary their start and end times daily','Work is distributed between two employees'],
+        ans:1, exp:'Compressed workweek = full week\'s work in fewer than five 8-hour days. Example: 4 days × 10 hours.' },
+      { type:'tf', q:'Job enlargement adds depth by increasing an employee\'s planning and decision-making responsibilities.',
+        ans:false, exp:'That is the definition of Job ENRICHMENT. Job ENLARGEMENT broadens scope by adding more tasks at the SAME level (horizontal expansion).' },
+      { type:'tf', q:'Skill variety in the Hackman & Oldham model is the same concept as multitasking.',
+        ans:false, exp:'The textbook explicitly states that skill variety is NOT to be confused with multitasking. Skill variety is about requiring DIFFERENT types of activities for job completion.' },
+      { type:'tf', q:'A self-directed team uses its own internal decision-making processes.',
+        ans:true, exp:'Unlike special-purpose teams, self-directed teams have their own internal decision-making processes and operate as independent entities.' },
+      { type:'tf', q:'Job analysis provides the information used to create job descriptions and job specifications.',
+        ans:true, exp:'Job analysis provides the foundation for job descriptions and job specifications, which are used in recruiting, selection, training, compensation, and virtually all HR activities.' },
+    ]
+  },
+  {
+    id: 4, title: 'Chapter 4', sub: 'Human Resource Planning',
+    icon: '📅', color: 'var(--ch4)', prog: 'prog-4', card: 'ch-card-4',
+    questions: [
+      { type:'mcq', q:'HR planning focuses on ensuring the organization has:',
+        opts:['The highest number of employees at all times','The right number of people, with right capabilities, at right times, in right places','A workforce that is diverse in age and background','Employees who are cross-trained in all job functions'],
+        ans:1, exp:'HR planning\'s focus is specifically: right number, right capabilities, right time, right place. This is the core definition from the textbook.' },
+      { type:'mcq', q:'The Delphi technique differs from Nominal Groups in that:',
+        opts:['Delphi uses mathematical models while Nominal uses human estimates','Delphi experts meet face-to-face while Nominal experts work remotely','Delphi experts do NOT meet face-to-face; Nominal experts DO meet face-to-face','Delphi is used for internal assessment; Nominal for external'],
+        ans:2, exp:'Delphi = no face-to-face meeting, opinions gathered separately. Nominal Groups = experts DO meet face-to-face but generate ideas independently first, then discuss as a group.' },
+      { type:'mcq', q:'Functional turnover is:',
+        opts:['Negative because it means top performers are leaving','Positive because lower-performing or disruptive employees are leaving','Turnover that is outside the employer\'s control','Turnover caused by employee retirement'],
+        ans:1, exp:'Functional turnover is GOOD for the organization: lower-performing or disruptive employees leave. Dysfunctional turnover is BAD: high performers leave at critical times.' },
+      { type:'mcq', q:'Which forecasting method creates abstract representations of real workforce situations?',
+        opts:['Productivity ratios','Rule of thumb','Simulation models','Staffing ratios'],
+        ans:2, exp:'Simulation models are "representations of real situations in abstract form." They model complex scenarios mathematically.' },
+      { type:'mcq', q:'A key challenge for HR planning in small businesses is:',
+        opts:['Too many employees to manage','Lack of access to technology','Family matters and succession planning','Excessive government regulations'],
+        ans:2, exp:'The textbook specifically identifies family matters and succession as the one difficult area for HR planning in small businesses.' },
+      { type:'tf', q:'Dysfunctional turnover occurs when lower-performing employees leave the organization.',
+        ans:false, exp:'Dysfunctional turnover is when KEY individuals and HIGH PERFORMERS leave at critical times. It is BAD for the organization. Functional turnover (good) is when lower-performers leave.' },
+      { type:'tf', q:'Internal supply forecasting considers promotions, lateral moves, and terminations.',
+        ans:true, exp:'Internal supply = current headcount adjusted for external hires, promotions, lateral moves, and terminations.' },
+      { type:'tf', q:'The Delphi technique requires experts to meet face-to-face to discuss their forecasts.',
+        ans:false, exp:'Delphi technique does NOT require face-to-face meetings. It gathers input from experts separately. Nominal Groups is the technique where experts meet face-to-face.' },
+      { type:'tf', q:'Involuntary turnover occurs when employees choose to leave an organization on their own.',
+        ans:false, exp:'Involuntary turnover = the EMPLOYER terminates employees (poor performance or violations). Voluntary turnover = employees CHOOSE to leave.' },
+    ]
+  },
+  {
+    id: 5, title: 'Chapter 5', sub: 'Selecting Human Resources',
+    icon: '🎯', color: 'var(--ch5)', prog: 'prog-5', card: 'ch-card-5',
+    questions: [
+      { type:'mcq', q:'Which of the following best describes concurrent validity?',
+        opts:['Test results of applicants are compared with their future job performance','Current employees are tested and scores are correlated with their current performance ratings','A test that produces consistent results each time it is administered','A test that is validated against industry benchmarks'],
+        ans:1, exp:'Concurrent validity = test CURRENT employees and correlate scores with CURRENT performance ratings. Predictive validity = test applicants BEFORE hiring and compare to LATER performance.' },
+      { type:'mcq', q:'In the compensatory approach to combining predictors:',
+        opts:['Each predictor has a minimum cutoff that must be met independently','Only the highest-scoring predictor is used for the final decision','A high score on one predictor can offset a low score on another','Predictors are weighted equally with no possibility of compensation'],
+        ans:2, exp:'Compensatory Approach: individual scores are combined into one overall score, allowing a high score somewhere to compensate for a low score elsewhere.' },
+      { type:'mcq', q:'Reliability of a selection test means:',
+        opts:['The test measures what it is supposed to measure','The test produces the same results consistently over time','The test has been validated against current employee performance','The test is free from cultural bias'],
+        ans:1, exp:'Reliability = consistency. A reliable test produces the same result repeatedly over time. Note: validity = measuring the right thing. A test can be reliable but not valid.' },
+      { type:'mcq', q:'Which of the following is NOT one of the 5 mismatch situations?',
+        opts:['Skills / job qualifications','Geography / job location','Personality / culture fit','Work / family balance'],
+        ans:2, exp:'The 5 mismatches are: Skills/qualifications, Geography/location, Time/amount of work, Earnings/expectations, Work/family. Personality/culture is NOT listed as one of the five.' },
+      { type:'mcq', q:'The phrase "Hire hard, manage easy" means:',
+        opts:['Managers should be strict with new employees','Investing effort in selecting the right people makes managing them much easier afterward','Hard skills are more important than soft skills in selection','The hiring process should be long and bureaucratic'],
+        ans:1, exp:'"Hire hard, manage easy" means investing time and effort upfront in rigorous selection prevents management problems later.' },
+      { type:'tf', q:'Predictive validity is established by testing current employees and correlating scores with their current performance ratings.',
+        ans:false, exp:'That is CONCURRENT validity. Predictive validity tests APPLICANTS before hiring and later compares their test scores to their actual job performance after they are hired.' },
+      { type:'tf', q:'Person/Organization Fit refers to the congruence between individuals and organizational factors.',
+        ans:true, exp:'Person/Organization Fit = congruence between individual characteristics and broader organizational factors (values, culture, work environment).' },
+      { type:'tf', q:'In the multiple hurdles approach, a very high score on one predictor can compensate for a low score on another.',
+        ans:false, exp:'In Multiple Hurdles, each predictor has a minimum cutoff and ALL must be passed independently. High scores CANNOT compensate. That is the Compensatory Approach.' },
+      { type:'tf', q:'All interview questions should be directly related to the job being filled.',
+        ans:true, exp:'All interview questions must be directly job-related. Questions not related to the job are explicitly listed as a type to avoid.' },
+    ]
+  },
+  {
+    id: 0, title: 'Final Exam', sub: 'All 5 Chapters — Comprehensive Review',
+    icon: '🏆', color: 'var(--exam)', prog: 'prog-exam', card: 'ch-card-exam',
+    questions: [
+      { type:'mcq', q:'[Ch.1] Human assets are described as the _____ that holds all other organizational assets together.',
+        opts:['Foundation','Glue','Core','Structure'], ans:1, exp:'Human assets = the "glue". The exact phrase appears in the textbook definition.' },
+      { type:'mcq', q:'[Ch.1] Which of the following is NOT one of the 7 HR Management Functions?',
+        opts:['Staffing','Talent Management','Marketing Strategy','Rewards'], ans:2, exp:'Marketing Strategy is NOT one of the 7 HR functions (Planning, EEO, Staffing, Talent Mgmt, Rewards, Risk Mgmt, Employee Relations).' },
+      { type:'mcq', q:'[Ch.1] Organizational productivity at the human resource level is measured using:',
+        opts:['Return on Investment','HCVA','Unit Labor Cost','Balanced Scorecard'], ans:2, exp:'Unit Labor Cost = Average Cost of Workers / Average Output. This is the specific HR-level productivity formula.' },
+      { type:'mcq', q:'[Ch.1] The HR role that is proactive, future-focused, and tied to business strategy is the:',
+        opts:['Administrative role','Operational role','Employee advocate role','Strategic role'], ans:3, exp:'Strategic Role = proactive, future-focused, measures results. Operational = day-to-day implementation.' },
+      { type:'mcq', q:'[Ch.2] Strategic HRM is best defined as:',
+        opts:['Planning employee headcount annually','Using HR practices to gain or keep a competitive advantage','Conducting employee satisfaction surveys','Managing HR budgets efficiently'], ans:1, exp:'Strategic HRM = using HR practices to gain or maintain a competitive advantage. Direct textbook definition.' },
+      { type:'mcq', q:'[Ch.2] In SWOT analysis, internal factors are represented by:',
+        opts:['Opportunities and Threats','Strengths and Opportunities','Strengths and Weaknesses','Weaknesses and Threats'], ans:2, exp:'SWOT: S & W = internal (inside the org). O & T = external (outside the org).' },
+      { type:'mcq', q:'[Ch.2] HEVA measures:',
+        opts:['Operating profit per employee','Return on labor investment','Wealth created per employee after subtracting cost of capital','Total compensation relative to revenue'], ans:2, exp:'HEVA = (Net Profit after Tax - Cost of Capital) / Headcount. Shows wealth created per employee.' },
+      { type:'mcq', q:'[Ch.2] Offshoring is defined as:',
+        opts:['Hiring foreign workers domestically','Relocating a business process to another country to reduce costs','Outsourcing to a local domestic firm','Expanding the workforce internationally'], ans:1, exp:'Offshoring = relocating a business process to ANOTHER COUNTRY to reduce costs. Different from domestic outsourcing.' },
+      { type:'mcq', q:'[Ch.2] The Balanced Scorecard area that covers employee training, mentoring, and succession planning is:',
+        opts:['Financial Measures','Customer Relations','Internal Business Processes','Learning and Growth'], ans:3, exp:'Learning & Growth = training, mentoring, succession planning, and knowledge creation/sharing.' },
+      { type:'mcq', q:'[Ch.3] Job enlargement involves:',
+        opts:['Adding planning and decision-making responsibilities','Rotating employees between departments','Broadening scope by expanding the number of different tasks at the same level','Reducing a job to its simplest components'], ans:2, exp:'Job Enlargement = horizontal (more tasks, same level). Job Enrichment = vertical (more responsibility/authority).' },
+      { type:'mcq', q:'[Ch.3] Which Hackman & Oldham characteristic describes the extent of individual freedom and discretion in the work?',
+        opts:['Skill Variety','Task Significance','Feedback','Autonomy'], ans:3, exp:'Autonomy = individual freedom and discretion. More autonomy leads to greater personal responsibility.' },
+      { type:'mcq', q:'[Ch.3] The second phase of Business Process Reengineering (BPR) is:',
+        opts:['Rethink','Retool','Redesign','Rebuild'], ans:2, exp:'BPR phases in order: 1-Rethink, 2-Redesign, 3-Retool.' },
+      { type:'mcq', q:'[Ch.3] A self-directed work team differs from a special-purpose team because it:',
+        opts:['Is composed only of managers','Uses its own internal decision-making processes and operates as a more permanent entity','Is formed only to solve a single problem','Requires members to be in the same location'], ans:1, exp:'Self-directed teams have their own internal decision-making, are permanent entities. Special-purpose teams are temporary.' },
+      { type:'mcq', q:'[Ch.4] The Delphi technique differs from Nominal Groups in that Delphi:',
+        opts:['Uses mathematical models','Requires experts to meet face-to-face','Does NOT require face-to-face meetings — expert opinions are gathered separately','Is used only for external workforce assessment'], ans:2, exp:'Delphi = NO face-to-face. Nominal Groups = face-to-face but ideas generated independently first.' },
+      { type:'mcq', q:'[Ch.4] Functional turnover is considered beneficial because:',
+        opts:['High performers leave and open promotion opportunities','Lower-performing or disruptive employees are leaving','It reduces total headcount and lowers costs','It happens outside the employer\'s control'], ans:1, exp:'Functional = lower-performing/disruptive employees leave = GOOD. Dysfunctional = high performers leave = BAD.' },
+      { type:'mcq', q:'[Ch.4] The internal supply forecast for human resources considers:',
+        opts:['Government labor statistics and migration data','Industry graduation rates and economic forecasts','External hires plus movements through promotions, lateral moves, and terminations','Competitor workforce size and compensation levels'], ans:2, exp:'Internal supply = current headcount adjusted for external hires, promotions, lateral moves, and terminations.' },
+      { type:'mcq', q:'[Ch.4] HR planning in small businesses is particularly challenged by:',
+        opts:['Too large a workforce to manage','Lack of financial resources for training','Family matters and succession planning','Excessive union activity'], ans:2, exp:'Textbook specifically identifies family matters and succession as the key small business HR planning challenge.' },
+      { type:'mcq', q:'[Ch.5] Concurrent validity is established by:',
+        opts:['Testing applicants before hiring and comparing results to later job performance','Testing current employees and correlating scores with their current performance ratings','Comparing test results against industry benchmarks','Ensuring the test is administered consistently over time'], ans:1, exp:'Concurrent = test CURRENT employees + correlate with CURRENT performance. Predictive = test applicants + compare to LATER performance.' },
+      { type:'mcq', q:'[Ch.5] In the Multiple Hurdles approach to combining predictors:',
+        opts:['A high score on one predictor compensates for a low score on another','Only the highest-weighted predictor determines the final decision','A minimum cutoff is set on each predictor and all must be passed','All predictors are averaged into one composite score'], ans:2, exp:'Multiple Hurdles = minimum cutoff on EACH predictor, ALL must be passed independently. No compensation allowed.' },
+      { type:'mcq', q:'[Ch.5] Which of the following is NOT a type of question interviewers should avoid?',
+        opts:['Leading questions','Illegal questions','Behavioral questions about past job performance','Yes/No questions'], ans:2, exp:'Behavioral questions are GOOD practice. The ones to AVOID are: yes/no, obvious, leading, illegal, and non-job-related.' },
+
+      // True/False — Final Exam
+      { type:'tf', q:'[Ch.1] Human capital is another term for the physical assets of an organization such as buildings and equipment.',
+        ans:false, exp:'Human capital is the collective value of capabilities, knowledge, skills, life experiences, and motivation of the workforce (also called intellectual capital). Buildings and equipment are PHYSICAL assets.' },
+      { type:'tf', q:'[Ch.1] A core competency is a unique capability that creates high value and differentiates an organization from its competition.',
+        ans:true, exp:'This statement is correct as written.' },
+      { type:'tf', q:'[Ch.1] The operational HR role is proactive and focused on future workforce planning and business strategy.',
+        ans:false, exp:'The OPERATIONAL role handles day-to-day HR implementation with managers. The STRATEGIC role is proactive and future-focused.' },
+      { type:'tf', q:'[Ch.2] Benchmarking is the process of comparing business processes and outcomes to an industry standard or best practice.',
+        ans:true, exp:'This statement is correct as written.' },
+      { type:'tf', q:'[Ch.2] HCVA and HCROI share the same numerator in their formulas.',
+        ans:true, exp:'Both HCVA and HCROI share the numerator: Revenue minus (Operating Expense minus Compensation and Benefits). HCVA divides by headcount; HCROI divides by compensation and benefits costs.' },
+      { type:'tf', q:'[Ch.2] The organizational mission describes how the company plans to compete in the market.',
+        ans:false, exp:'The organizational MISSION describes the core reason for existence and what makes the org unique. The STRATEGY describes HOW the org plans to compete.' },
+      { type:'tf', q:'[Ch.3] Job enrichment expands the scope of a job horizontally by adding more tasks at the same level of responsibility.',
+        ans:false, exp:'That is the definition of JOB ENLARGEMENT (horizontal expansion). Job ENRICHMENT adds depth vertically by adding responsibility for planning, organizing, controlling, and evaluating.' },
+      { type:'tf', q:'[Ch.3] Skill variety in the Hackman and Oldham model means the same thing as multitasking.',
+        ans:false, exp:'The textbook explicitly states skill variety is NOT to be confused with multitasking. Skill variety means the job requires several different types of activities or skills.' },
+      { type:'tf', q:'[Ch.3] A virtual team is composed of members who are geographically separated but linked through communication technology.',
+        ans:true, exp:'This statement is correct as written.' },
+      { type:'tf', q:'[Ch.4] Dysfunctional turnover is positive for the organization because it removes low-performing employees.',
+        ans:false, exp:'Dysfunctional turnover is HARMFUL. It occurs when key individuals and high performers leave at critical times. FUNCTIONAL turnover is beneficial.' },
+      { type:'tf', q:'[Ch.4] The Nominal Groups forecasting method requires experts to meet face-to-face.',
+        ans:true, exp:'This statement is correct as written.' },
+      { type:'tf', q:'[Ch.4] Involuntary turnover occurs when employees choose to leave an organization on their own.',
+        ans:false, exp:'Involuntary turnover = the EMPLOYER terminates employees. VOLUNTARY turnover = employees choose to leave on their own.' },
+      { type:'tf', q:'[Ch.5] Reliability means a test measures what it is actually intended to measure.',
+        ans:false, exp:'That is the definition of VALIDITY. RELIABILITY means a test produces the SAME results consistently over time. A test can be reliable but not valid.' },
+      { type:'tf', q:'[Ch.5] In the Compensatory approach to combining predictors, a high score on one predictor can offset a low score on another.',
+        ans:true, exp:'This statement is correct as written.' },
+    ]
+  }
+];
+
+// ═══════════════ STATE ═══════════════
+let currentChapter = null;
+let questions = [];
+let qIndex = 0;
+let answered = false;
+let sessionCorrect = 0;
+let sessionWrong = 0;
+let sessionLog = [];
+let timerInterval = null;
+let timerSeconds = 0;
+
+const progress = JSON.parse(localStorage.getItem('hrm_progress') || '{}');
+
+// ═══════════════ RENDER HOME ═══════════════
+function renderHome() {
+  const grid = document.getElementById('chapter-grid');
+  grid.innerHTML = '';
+
+  let totalCorrect = 0, totalAnswered = 0;
+  CHAPTERS.forEach(ch => {
+    const p = progress[ch.id] || { correct: 0, total: ch.questions.length };
+    totalCorrect += p.correct || 0;
+    totalAnswered += p.answered || 0;
+  });
+  document.getElementById('total-score').textContent = totalCorrect;
+  document.getElementById('total-answered').textContent = totalAnswered;
+  document.getElementById('total-accuracy').textContent = totalAnswered > 0
+    ? Math.round(totalCorrect / totalAnswered * 100) + '%' : '—';
+
+  CHAPTERS.forEach(ch => {
+    const p = progress[ch.id] || {};
+    const pct = p.answered > 0 ? Math.round((p.correct || 0) / (p.answered || 1) * 100) : 0;
+    const done = p.answered >= ch.questions.length;
+    const div = document.createElement('div');
+    div.className = `chapter-card ${ch.card}`;
+    div.innerHTML = `
+      <div class="card-icon">${ch.icon}</div>
+      <div class="card-title">${ch.title}</div>
+      <div class="card-sub">${ch.sub}</div>
+      <div class="card-meta">
+        <div class="q-count">${ch.questions.length} questions</div>
+        <div class="badge ${done ? 'badge-done' : 'badge-new'}">${done ? '✓ Done' : 'Practice'}</div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill ${ch.prog}" style="width:${pct}%"></div></div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:6px">${p.answered ? `${p.answered} answered · ${pct}% accuracy` : 'Not started yet'}</div>
+    `;
+    div.addEventListener('click', () => startQuiz(ch.id));
+    grid.appendChild(div);
+  });
+}
+
+// ═══════════════ START QUIZ ═══════════════
+function startQuiz(chId) {
+  currentChapter = CHAPTERS.find(c => c.id === chId);
+  questions = shuffle([...currentChapter.questions]);
+  qIndex = 0; sessionCorrect = 0; sessionWrong = 0; sessionLog = [];
+
+  document.getElementById('quiz-title').textContent = `${currentChapter.title}: ${currentChapter.sub}`;
+  document.querySelector('.progress-bar-fill').style.background = currentChapter.color;
+
+  if (chId === 0) {
+    timerSeconds = 0;
+    const timerEl = document.getElementById('quiz-timer');
+    timerEl.classList.remove('hidden');
+    timerEl.textContent = '00:00';
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+      const s = String(timerSeconds % 60).padStart(2, '0');
+      timerEl.textContent = `${m}:${s}`;
+    }, 1000);
+  } else {
+    document.getElementById('quiz-timer').classList.add('hidden');
+    clearInterval(timerInterval);
+  }
+
+  showScreen('quiz');
+  renderQuestion();
+}
+
+// ═══════════════ RENDER QUESTION ═══════════════
+function renderQuestion() {
+  if (qIndex >= questions.length) { showResults(); return; }
+  answered = false;
+  const q = questions[qIndex];
+  const total = questions.length;
+
+  document.getElementById('quiz-counter').textContent = `${qIndex + 1} / ${total}`;
+  document.getElementById('q-progress-fill').style.width = `${(qIndex / total) * 100}%`;
+
+  const typeLabel = q.type === 'mcq' ? 'Multiple Choice' : 'True / False';
+  document.getElementById('q-label').textContent = `${typeLabel} · Q${qIndex + 1}`;
+  document.getElementById('q-text').textContent = q.q;
+  document.getElementById('feedback-area').innerHTML = '';
+  document.getElementById('btn-next').classList.add('hidden');
+  document.getElementById('btn-skip').classList.remove('hidden');
+
+  const area = document.getElementById('answer-area');
+  if (q.type === 'mcq') {
+    area.innerHTML = `<div class="options">${q.opts.map((o, i) => `
+      <button class="option-btn" data-i="${i}">
+        <span class="option-letter">${'ABCD'[i]}</span>
+        <span class="option-text">${o}</span>
+      </button>`).join('')}</div>`;
+    area.querySelectorAll('.option-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleMCQ(parseInt(btn.dataset.i)));
+    });
+  } else {
+    area.innerHTML = `<div class="tf-options">
+      <button class="tf-btn" data-v="true">✓ True</button>
+      <button class="tf-btn" data-v="false">✗ False</button>
+    </div>`;
+    area.querySelectorAll('.tf-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleTF(btn.dataset.v === 'true'));
+    });
+  }
+}
+
+// ═══════════════ HANDLE MCQ ═══════════════
+function handleMCQ(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = questions[qIndex];
+  const correct = chosen === q.ans;
+  if (correct) sessionCorrect++; else sessionWrong++;
+  sessionLog.push({ q, chosen, correct });
+
+  document.querySelectorAll('.option-btn').forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.ans) btn.classList.add('revealed');
+    if (i === chosen && !correct) btn.classList.add('wrong');
+    if (i === chosen && correct) { btn.classList.remove('revealed'); btn.classList.add('correct'); }
+  });
+  showFeedback(correct, q.exp);
+  document.getElementById('btn-skip').classList.add('hidden');
+  document.getElementById('btn-next').classList.remove('hidden');
+  document.getElementById('btn-next').textContent = qIndex < questions.length - 1 ? 'Next Question →' : 'See Results';
+}
+
+// ═══════════════ HANDLE T/F ═══════════════
+function handleTF(chosen) {
+  if (answered) return;
+  answered = true;
+  const q = questions[qIndex];
+  const correct = chosen === q.ans;
+  if (correct) sessionCorrect++; else sessionWrong++;
+  sessionLog.push({ q, chosen, correct });
+
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.disabled = true;
+    const v = btn.dataset.v === 'true';
+    if (v === q.ans) btn.classList.add('revealed');
+    if (v === chosen && !correct) btn.classList.add('wrong');
+    if (v === chosen && correct) { btn.classList.remove('revealed'); btn.classList.add('correct'); }
+  });
+  showFeedback(correct, q.exp);
+  document.getElementById('btn-skip').classList.add('hidden');
+  document.getElementById('btn-next').classList.remove('hidden');
+  document.getElementById('btn-next').textContent = qIndex < questions.length - 1 ? 'Next Question →' : 'See Results';
+}
+
+// ═══════════════ FEEDBACK ═══════════════
+function showFeedback(correct, explanation) {
+  const fb = document.getElementById('feedback-area');
+  fb.innerHTML = `<div class="feedback-box ${correct ? 'correct' : 'wrong'}">
+    <div class="feedback-icon">${correct ? '✅' : '❌'}</div>
+    <div class="feedback-title">${correct ? 'Correct!' : 'Incorrect'}</div>
+    <div class="feedback-text">${explanation}</div>
+  </div>`;
+}
+
+// ═══════════════ RESULTS ═══════════════
+function showResults() {
+  clearInterval(timerInterval);
+  const total = sessionCorrect + sessionWrong;
+  const pct = total > 0 ? Math.round(sessionCorrect / total * 100) : 0;
+
+  // Update persistent progress
+  const p = progress[currentChapter.id] || { correct: 0, answered: 0 };
+  p.answered = (p.answered || 0) + total;
+  p.correct = (p.correct || 0) + sessionCorrect;
+  progress[currentChapter.id] = p;
+  localStorage.setItem('hrm_progress', JSON.stringify(progress));
+
+  // Ring animation
+  const circumference = 2 * Math.PI * 65;
+  const offset = circumference - (pct / 100) * circumference;
+  const ring = document.getElementById('ring-fg');
+  const ringColor = pct >= 80 ? '#22c55e' : pct >= 60 ? '#f59e0b' : '#ef4444';
+  ring.style.stroke = ringColor;
+  setTimeout(() => { ring.style.strokeDashoffset = offset; }, 100);
+
+  document.getElementById('score-pct').textContent = pct + '%';
+  document.getElementById('r-correct').textContent = sessionCorrect;
+  document.getElementById('r-wrong').textContent = sessionWrong;
+  document.getElementById('r-total').textContent = total;
+
+  let msg, sub;
+  if (pct === 100) { msg = '🏆 Perfect Score!'; sub = 'Outstanding! You have mastered this chapter.'; }
+  else if (pct >= 80) { msg = '🌟 Excellent!'; sub = 'Great work! Just a little more to reach perfection.'; }
+  else if (pct >= 60) { msg = '👍 Good Job!'; sub = 'You are on the right track. Review the wrong answers below.'; }
+  else { msg = '📖 Keep Studying!'; sub = 'Review the material and try again. You can do it!'; }
+  document.getElementById('result-msg').textContent = msg;
+  document.getElementById('result-sub').textContent = sub;
+
+  // Review wrong answers
+  const wrongItems = sessionLog.filter(l => !l.correct);
+  const review = document.getElementById('review-section');
+  if (wrongItems.length > 0) {
+    review.innerHTML = `<h3>Review Wrong Answers (${wrongItems.length})</h3>` +
+      wrongItems.map(item => {
+        const q = item.q;
+        let yourAnswer = '', correctAnswer = '';
+        if (q.type === 'mcq') {
+          yourAnswer = `Your answer: (${'ABCD'[item.chosen]}) ${q.opts[item.chosen]}`;
+          correctAnswer = `Correct: (${'ABCD'[q.ans]}) ${q.opts[q.ans]}`;
+        } else {
+          yourAnswer = `Your answer: ${item.chosen ? 'True' : 'False'}`;
+          correctAnswer = `Correct: ${q.ans ? 'True' : 'False'}`;
+        }
+        return `<div class="review-item wrong-item">
+          <div class="review-q">${q.q}</div>
+          <div class="review-answer">
+            <div class="review-yours">${yourAnswer}</div>
+            <div class="review-correct">${correctAnswer}</div>
+          </div>
+          <div class="review-explain">${q.exp}</div>
+        </div>`;
+      }).join('');
+  } else {
+    review.innerHTML = '<h3 style="color:var(--correct)">🎉 All answers correct! Great job!</h3>';
+  }
+
+  showScreen('results');
+}
+
+// ═══════════════ UTILS ═══════════════
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ═══════════════ EVENTS ═══════════════
+document.getElementById('btn-back').addEventListener('click', () => {
+  clearInterval(timerInterval);
+  renderHome();
+  showScreen('home');
+});
+
+document.getElementById('btn-next').addEventListener('click', () => {
+  qIndex++;
+  renderQuestion();
+});
+
+document.getElementById('btn-skip').addEventListener('click', () => {
+  qIndex++;
+  renderQuestion();
+});
+
+document.getElementById('btn-retry').addEventListener('click', () => startQuiz(currentChapter.id));
+document.getElementById('btn-home-result').addEventListener('click', () => { renderHome(); showScreen('home'); });
+
+// ═══════════════ INIT ═══════════════
+renderHome();
+</script>
+</body>
+</html>
